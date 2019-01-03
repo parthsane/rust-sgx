@@ -15,16 +15,20 @@ use usercalls::EnclaveState;
 pub struct Command {
     main: ErasedTcs,
     threads: Vec<ErasedTcs>,
+    pub address: usize,
+    pub size: usize,
 }
 
 impl Command {
     /// # Panics
     /// Panics if the number of TCSs is 0.
-    pub(crate) fn internal_new(mut tcss: Vec<ErasedTcs>) -> Command {
+    pub(crate) fn internal_new(mut tcss: Vec<ErasedTcs>, address: usize, size: usize) -> Command {
         let main = tcss.remove(0);
         Command {
             main,
             threads: tcss,
+            address,
+            size,
         }
     }
 

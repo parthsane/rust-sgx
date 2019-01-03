@@ -1,0 +1,170 @@
+#! /bin/bash
+
+
+set -e
+
+
+terminal=
+script_name="$(basename ${0})"
+addr_pattern="Error While executing SGX enclave loaded at address"
+stack_pattern="stack backtrace:"
+state="waiting_address"
+start_address=
+executable=
+trace_file=
+default_options="-Cfp"
+options="${default_options}"
+supress=0
+
+detect_term()
+{
+    if [ -t 0 ]; then
+        terminal=1
+    else
+        terminal=0
+    fi
+}
+
+drain()
+{
+    local line=;
+    if [ ${terminal} == 0 ]; then
+        while read -r line; do
+	    :
+        done
+    fi
+    exit $1
+}
+
+parse_line()
+{
+    local line=$1
+    if [[ $line = *[![:ascii:]]* ]]; then
+        echo "Non Ascii Characters detected in input\n"
+        usage
+        drain -1
+    fi
+    line=`echo $line | awk '{$1=$1};1'`
+
+    if [ "${state}" == "waiting_address" ]; then
+        start_address=`echo ${line} | grep "${addr_pattern}" | awk '{print $NF}'`
+        if [[ "$start_address" =~ 0x.* ]]; then
+            state="waiting_stack"
+	    echo ${line}
+	else
+	    if [ "${supress}" == "0" ]; then
+                echo ${line}
+            fi
+        fi
+    elif [ "${state}" == "waiting_stack" ]; then
+	    echo ${line}
+        if [ "${line}" == "${stack_pattern}" ]; then
+            state="printing"
+        fi
+    elif  [ "${state}" == "printing" ]; then
+        sr_no=`echo $line | awk '{print $1}'`
+        address=`echo $line | awk '{print $NF}'`
+        if [[ "$address" =~ 0x.* ]]; then
+            offset=`printf '%x' "$(($address - $start_address))"`
+            echo "$sr_no `addr2line ${options} -e ${executable} ${offset}`"
+        else
+            state="waiting_address"
+        fi
+    fi
+}
+
+check_state()
+{
+    if [ "${state}" == "waiting_stack" ]; then
+        echo "Could not find ${stack_pattern}"
+    fi
+}
+
+parse_input()
+{
+    local line=
+    while IFS='' read -r line || [[ -n "$line" ]]; do
+        parse_line "${line}"
+    done
+    check_state
+}
+
+parse_file() {
+    local line=
+    while IFS='' read -r line || [[ -n "$line" ]]; do
+        parse_line "${line}"
+    done < "$1"
+    check_state
+}
+
+usage() {
+    echo -e "Usage:"
+    echo -e "\t1. Parse stack trace from stored output containing a Panic:"
+    echo -e "\t\t${script_name} [-o <\"opt\">] [-s] -e <executable_path> -f <stack_trace_file>"
+    echo -e "\t2. Parse panic stack trace from output of an enclave over pipe:"
+    echo -e "\t\t<output_stream> | ${script_name} [-o <"opt">] [-s] -e <executable_path>"
+    echo -e "Note:"
+    echo -e "\t1. Here, opt indicates options passed to addr2line, default = \"${default_options}\"."
+    echo -e "\t   Please refer to manpage of addr2line for further details about options."
+    echo -e "\t2. -s option suppresses the output that does not pertain to stack trace of a panic."
+    echo -e "\t   Without -s, lines of output before the stack trace would be echoed on the screen."
+    echo -e "Dependencies:"
+    echo -e "\taddr2line from binutils, awk, and, grep."
+    echo -e "Help:"
+    echo -e "\t${script_name} -h prints help."
+}
+
+detect_term
+while getopts "h?o:e:f:s" opt; do
+    case "$opt" in
+    h|\?)
+        usage
+        drain 0
+        ;;
+    e) executable=$OPTARG
+        ;;
+    o) options=$OPTARG
+        ;;
+    f)  trace_file=$OPTARG
+        ;;
+    s) supress=1
+        ;;
+    esac
+done
+
+shift $((OPTIND-1))
+
+if [ ! -z $1 ]; then
+    echo "Extra Arguments detected $@"
+    usage
+    drain -1
+fi
+
+if [ -z ${executable} ]; then
+    echo "No executable file given"
+    usage
+    drain -1
+fi
+
+#Options must begin with - and have f, since we provide the exec path with -f
+if [[ ! $options =~ -.* ]]; then
+    options="-${options}"
+fi
+
+if [ -z ${trace_file} ]; then
+    if [ "${terminal}" == "0" ]; then
+     parse_input
+    else
+        echo "No trace file provided and running on standard input terminal"
+        usage
+    drain -1
+    fi
+else
+    if [ "${terminal}" == "1" ]; then
+        parse_file "${trace_file}"
+    else
+        echo "trace file provided and not running on standard input terminal"
+        usage
+    drain -1
+    fi
+fi

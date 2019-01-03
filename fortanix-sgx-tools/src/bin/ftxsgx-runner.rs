@@ -37,6 +37,12 @@ fn main() -> Result<(), Error> {
     let mut device = IsgxDevice::open(DEFAULT_DEVICE_PATH, AesmClient::new())
         .context("While opening SGX device")?;
     let enclave = Command::new(&file, &mut device).context("While loading SGX enclave")?;
-    enclave.run().context("While executing SGX enclave")?;
-    Ok(())
+    let address = enclave.address;
+    enclave.run().map_err(|e| {
+        println!(
+            "Error While executing SGX enclave loaded at address 0x{:x}\n{}\n",
+            address, e
+        );
+        std::process::exit(-1)
+    })
 }

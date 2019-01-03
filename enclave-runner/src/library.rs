@@ -18,7 +18,7 @@ pub struct Library {
 }
 
 impl Library {
-    pub(crate) fn internal_new(tcss: Vec<ErasedTcs>) -> Library {
+    pub(crate) fn internal_new(tcss: Vec<ErasedTcs>, _address: usize, _size: usize) -> Library {
         Library {
             enclave: EnclaveState::library(tcss),
         }
