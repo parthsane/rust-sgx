@@ -3,4 +3,4 @@ rust:
   - nightly
 script:
 script:
-  - cargo build --verbose --all
+  - RUST_BACKTRACE=1 cargo build --verbose --all
