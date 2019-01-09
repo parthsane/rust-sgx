@@ -6,3 +6,4 @@ rust:
   - nightly
 script:
   - RUST_BACKTRACE=1 cargo build --verbose --all
+  - cargo test
