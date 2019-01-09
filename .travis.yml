@@ -5,5 +5,4 @@ before_install:
 rust:
   - nightly
 script:
-  - RUST_BACKTRACE=1 cargo build --verbose --all
-  - cargo test
+  - RUST_BACKTRACE=1 cargo test --verbose --all
