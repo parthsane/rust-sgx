@@ -2,4 +2,4 @@
 members = ["aesm-client", "enclave-runner", "fortanix-sgx-tools", "sgx-isa", "sgxs", "sgxs-tools", "fortanix-sgx-abi", "sgxs-loaders"]
 
 [patch.crates-io]
-winapi = { path = 'C:\Users\Parth Sane\code\winapi-rs' }
+winapi = { git = 'https://github.com/parthsane/winapi-rs', branch="enclaveapi"}
