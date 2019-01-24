@@ -22,8 +22,8 @@ extern crate bitflags;
 
 mod generic;
 #[cfg(unix)] pub mod isgx;
-#[cfg(unix)] pub mod sgx_enclave_common;
-#[cfg(windows)] pub mod win_sgx;
+pub mod sgx_enclave_common;
+#[cfg(windows)] pub mod enclaveapi;
 
 
 use std::fmt::Debug;
