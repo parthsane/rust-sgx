@@ -16,4 +16,4 @@ members = [
 ]
 
 [patch.crates-io]
-winapi = { git = 'https://github.com/parthsane/winapi-rs', branch="enclaveapi"}
+winapi = { git = 'https://github.com/parthsane/winapi-rs', branch="enclaveapi_r"}
