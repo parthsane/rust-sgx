@@ -78,6 +78,7 @@ impl EnclaveLoad for WinInnerLibrary {
                 ptr::null_mut()
             )
         };
+
         if base.is_null() {
             Err(Error::Create(IoError::last_os_error()))
         } else {
@@ -123,7 +124,7 @@ impl EnclaveLoad for WinInnerLibrary {
                     return Err(Error::Add(ErrorKind::InvalidInput.into()))
                 }
                 // NOTE: For some reason the windows API needs the Read flag set but then removes it
-                flags = PAGE_ENCLAVE_THREAD_CONTROL|PAGE_READONLY;
+                flags = PAGE_ENCLAVE_THREAD_CONTROL|PAGE_READWRITE;
             },
             _ => return Err(Error::Add(ErrorKind::InvalidInput.into())),
         }
