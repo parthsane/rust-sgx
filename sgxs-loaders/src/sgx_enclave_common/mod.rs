@@ -10,7 +10,7 @@ use std::io::{Result as IoResult, Error as IoError};
 use std::os::raw::c_void;
 use std::sync::Arc;
 use std::{fmt, mem, ptr};
-
+#[cfg(unix)]
 use libc;
 
 use abi::{Attributes, Einittoken, Miscselect, PageType, SecinfoFlags, Secs, Sigstruct};

@@ -19,13 +19,7 @@ extern crate protobuf;
 extern crate sgxs;
 #[cfg(unix)]
 extern crate unix_socket;
-#[cfg(windows)]
-extern crate winapi;
-use winapi::um::combaseapi::{CoInitializeEx, CoCreateInstance, CoUninitialize, CLSCTX_ALL};
-use winapi::shared::winerror::{S_OK, S_FALSE};
-use winapi::um::objbase::{COINIT_APARTMENTTHREADED, COINIT_MULTITHREADED, COINIT_DISABLE_OLE1DDE};
-use winapi::shared::guiddef::{CLSID, IID};
-use winapi::_core::ffi::c_void;
+
 use std::ffi::OsStr;
 use std::io::{Read, Write};
 use std::ptr;
@@ -47,12 +41,14 @@ use sgxs::sigstruct::{Attributes, Sigstruct};
 
 include!(concat!(env!("OUT_DIR"), "/mod_aesm_proto.rs"));
 mod error;
-#[cfg(windows)] mod win_interface;
-#[cfg(windows)] use win_interface::*;
-#[cfg(windows)] extern crate sgx_isa;
 use self::aesm_proto::*;
 pub use error::{AesmError, Error, Result};
-
+#[cfg(windows)]
+extern crate winapi;
+#[cfg(windows)]
+extern crate sgx_isa;
+#[cfg(windows)]
+mod win_aesm_client;
 // From SDK aesm_error.h
 const AESM_SUCCESS: u32 = 0;
 
@@ -161,171 +157,8 @@ impl QuoteResult {
 #[cfg(windows)]
 #[derive(Debug, Clone)]
 pub struct AesmClient {
-    interface: *mut aesm_interface_t
+    interface: *mut win_aesm_client::AesmInterfaceT
 }
-#[cfg(windows)] impl Drop for AesmClient {
-    fn drop (&mut self ) {
-        unsafe {
-            if let Some(release) = (*(*self.interface).vtbl).release {
-                release(self.interface);
-            }
-            CoUninitialize();
-        }
-    }
-}
-
-#[cfg(windows)]
-impl AesmClient {
-    pub fn new () -> Result<Self> {
-        let aesm_client = AesmClient::create_instance()?;
-        Ok(aesm_client)
-    }
-
-    // try connect and make lazy
-    // remove option
-    fn create_instance() -> Result<Self> {
-        let mut instance : *mut aesm_interface_t = std::ptr::null_mut();
-        let clsid_aesminterface : CLSID = CLSID {
-            Data1: 0x82367CAB,
-            Data2: 0xF2B9,
-            Data3: 0x461A,
-            Data4: [0xB6, 0xC6, 0x88, 0x9D, 0x13, 0xEF, 0xC6, 0xCA]
-        };
-        let iid_iaesminterface : IID = IID {
-            Data1: 0x50AFD900,
-            Data2: 0xF309,
-            Data3: 0x4557,
-            Data4: [0x8F, 0xCB, 0x10, 0xCF, 0xAB, 0x80, 0x2C, 0xDD]
-        };
-        unsafe {
-            let res = CoInitializeEx(
-                ptr::null_mut(),
-                COINIT_MULTITHREADED | COINIT_DISABLE_OLE1DDE
-            );
-            if res != S_OK && res != S_FALSE {
-                // raise error;
-                //panic!("Fail to initialize Com interface");
-                return Err(Error::AesmBadResponse(("Fail to initialize Com interface").to_string()));
-            }
-            let res = CoCreateInstance(
-                &clsid_aesminterface,
-                ptr::null_mut(),
-                CLSCTX_ALL,
-                &iid_iaesminterface,
-                &mut instance as *mut _ as *mut *mut c_void);
-            if res < 0 {
-                return Err(Error::AesmBadResponse(("Fail to create Aesm Interface").to_string()));
-            }
-        }
-        Ok(AesmClient {
-            interface: instance
-        })
-    }
-
-    pub fn init_quote(&self) -> Result<QuoteInfo> {
-        //Check if aesm is valid.
-        let mut target_info : Vec<u8> = vec![0; sgx_isa::Targetinfo::UNPADDED_SIZE];
-        let mut gid: Vec<u8> = vec![0; 4usize];
-        let mut error : aesm_error_t = 0;
-        unsafe {
-            if let Some(init_quote) = (*(*self.interface).vtbl).init_quote {
-                let ret = init_quote(
-                    self.interface,
-                    target_info.as_mut_ptr(),
-                    target_info.len() as _,
-                    gid.as_mut_ptr(),
-                    gid.len() as _,
-                    &mut error as _
-                );
-                if ret < 0 || error!=0 {
-                    return Err(Error::AesmCode(error.into()));
-                }
-            }
-        }
-        let quote_info : QuoteInfo = QuoteInfo {
-            target_info ,
-            gid
-        };
-        return Ok(quote_info);
-    }
-
-    pub fn get_quote(
-        &self,
-        session: &QuoteInfo,
-        report: Vec<u8>,
-        spid: Vec<u8>,
-        sig_rl: Vec<u8>,
-    ) -> Result<QuoteResult> {
-        use sgx_isa::Report;
-        let mut report_clone = report.clone();
-        let mut spid_clone = spid.clone();
-        let mut sig_rl = sig_rl.clone();
-        let mut nonce : Vec<u8> = vec![0; 64];
-        let quote_buffer_size = session.quote_buffer_size(&sig_rl);
-        let mut qe_report:Vec<u8> = vec![0; Report::UNPADDED_SIZE as usize];
-        let mut quote :Vec<u8> = vec![0; quote_buffer_size as usize];
-        let mut error : aesm_error_t = 0;
-
-        unsafe {
-            if let Some(get_quote) = (*(*self.interface).vtbl).get_quote {
-                let ret = get_quote(
-                    self.interface,
-                    report_clone.as_mut_ptr(),
-                    report_clone.len() as _,
-                    QuoteType::Linkable.into(),
-                    spid_clone.as_mut_ptr(),
-                    spid_clone.len() as _,
-                    nonce.as_mut_ptr(),
-                    nonce.len() as _,
-                    sig_rl.as_mut_ptr(),
-                    sig_rl.len() as _,
-                    qe_report.as_mut_ptr(),
-                    qe_report.len() as _,
-                    quote.as_mut_ptr(),
-                    quote_buffer_size,
-                    &mut error as _
-                );
-                if error != 0 || ret < 0 {
-                    return Err(Error::AesmCode(error.into()));
-                }
-            }
-        }
-        return Ok(QuoteResult::new(quote, qe_report));
-    }
-    pub fn get_launch_token(
-        &self,
-        mr_enclave: Vec<u8>,
-        signer_modulus: Vec<u8>,
-        attributes: Vec<u8>,
-    ) -> Result<Vec<u8>> {
-        let mut mr_enclave_clone = mr_enclave.clone();
-        let mut signer_modulus_clone = signer_modulus.clone();
-        let mut attributes_clone = attributes.clone();
-        let mut licence_token = vec![0; sgx_isa::Einittoken::UNPADDED_SIZE ];
-        let mut error : aesm_error_t = 0;
-        unsafe {
-            if let Some(get_license_token) = (*(*self.interface).vtbl).get_license_token {
-                let ret = get_license_token(
-                    self.interface,
-                    mr_enclave_clone.as_mut_ptr(),
-                    mr_enclave_clone.len() as _,
-                    signer_modulus_clone.as_mut_ptr(),
-                    signer_modulus_clone.len() as _,
-                    attributes_clone.as_mut_ptr(),
-                    attributes_clone.len() as _,
-                    licence_token.as_mut_ptr(),
-                    licence_token.len() as _,
-                    &mut error as _
-                );
-                if ret<0 || error!=0 {
-                    return Err(Error::AesmCode(error.into()));
-                }
-            }
-        }
-        return Ok(licence_token);
-    }
-}
-
 #[cfg(unix)]
 #[derive(Default, Debug, Clone)]
 pub struct AesmClient {

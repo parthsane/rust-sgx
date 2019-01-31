@@ -1,7 +1,7 @@
 use std::{mem, ptr};
 use std::sync::Arc;
 use std::io::{Error as IoError, Result as IoResult, ErrorKind};
-use winapi::um::memoryapi::{VirtualFree, VirtualProtect};
+use winapi::um::memoryapi::VirtualFree;
 use winapi::um::processthreadsapi::GetCurrentProcess;
 use winapi::um::winnt::{HANDLE, ENCLAVE_INIT_INFO_SGX, MEM_RELEASE, PAGE_ENCLAVE_THREAD_CONTROL, PAGE_ENCLAVE_UNVALIDATED,
                         PAGE_READONLY, PAGE_READWRITE, PAGE_EXECUTE, PAGE_EXECUTE_READ, PAGE_EXECUTE_READWRITE, ENCLAVE_TYPE_SGX};
