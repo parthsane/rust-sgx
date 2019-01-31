@@ -1,7 +1,7 @@
 use std::{mem, ptr};
 use std::sync::Arc;
 use std::io::{Error as IoError, Result as IoResult, ErrorKind};
-use winapi::um::memoryapi::VirtualFree;
+use winapi::um::memoryapi::{VirtualFree, VirtualProtect};
 use winapi::um::processthreadsapi::GetCurrentProcess;
 use winapi::um::winnt::{HANDLE, ENCLAVE_INIT_INFO_SGX, MEM_RELEASE, PAGE_ENCLAVE_THREAD_CONTROL, PAGE_ENCLAVE_UNVALIDATED,
                         PAGE_READONLY, PAGE_READWRITE, PAGE_EXECUTE, PAGE_EXECUTE_READ, PAGE_EXECUTE_READWRITE, ENCLAVE_TYPE_SGX};
@@ -78,6 +78,7 @@ impl EnclaveLoad for WinInnerLibrary {
                 ptr::null_mut()
             )
         };
+
         if base.is_null() {
             Err(Error::Create(IoError::last_os_error()))
         } else {
@@ -123,7 +124,7 @@ impl EnclaveLoad for WinInnerLibrary {
                     return Err(Error::Add(ErrorKind::InvalidInput.into()))
                 }
                 // NOTE: For some reason the windows API needs the Read flag set but then removes it
-                flags = PAGE_ENCLAVE_THREAD_CONTROL|PAGE_READONLY;
+                flags = PAGE_ENCLAVE_THREAD_CONTROL|PAGE_READWRITE;
             },
             _ => return Err(Error::Add(ErrorKind::InvalidInput.into())),
         }
