@@ -19,7 +19,7 @@ extern crate protobuf;
 extern crate sgxs;
 #[cfg(unix)]
 extern crate unix_socket;
-
+#[cfg(unix)]
 use std::path::PathBuf;
 #[cfg(feature = "sgxs")]
 use std::result::Result as StdResult;
