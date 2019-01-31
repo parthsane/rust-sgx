@@ -214,8 +214,7 @@ impl AesmClient {
         Ok(aesm_client)
     }
 
-    // try connect and make lazy
-    // remove option
+
     fn create_instance() -> Result<Self> {
         let mut instance : *mut AesmInterfaceT = std::ptr::null_mut();
         let clsid_aesminterface : CLSID = CLSID {
