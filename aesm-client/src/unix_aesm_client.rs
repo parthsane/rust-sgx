@@ -1,13 +1,12 @@
 use std::ffi::OsStr;
 use std::os::unix::ffi::OsStrExt;
-use unix_socket::UnixStream;
 use std::path::{Path, PathBuf};
 use std::io::{Read, Write};
-use protobuf::Message;
 use byteorder::{LittleEndian, NativeEndian, ReadBytesExt, WriteBytesExt};
-use {Request_GetLaunchTokenRequest, Request_GetQuoteRequest, Request_InitQuoteRequest};
+use protobuf::Message;
+use unix_socket::UnixStream;
 pub use error::{AesmError, Error, Result};
-use {QuoteResult, QuoteType, QuoteInfo, AesmClient, AesmRequest, FromResponse};
+use {QuoteResult, QuoteType, QuoteInfo, AesmClient, AesmRequest, FromResponse, Request_GetLaunchTokenRequest, Request_GetQuoteRequest, Request_InitQuoteRequest};
 
 /// This timeout is an argument in AESM request protobufs.
 ///
