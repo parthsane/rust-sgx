@@ -6,11 +6,11 @@
 
 pub extern crate libloading as dl;
 
-use std::io::Result as IoResult;
+use std::io::{Result as IoResult, Error as IoError};
 use std::os::raw::c_void;
 use std::sync::Arc;
 use std::{fmt, mem, ptr};
-
+#[cfg(unix)]
 use libc;
 
 use abi::{Attributes, Einittoken, Miscselect, PageType, SecinfoFlags, Secs, Sigstruct};
@@ -69,6 +69,8 @@ pub enum LibraryError {
     NotInitialized,
     #[fail(display = "Unknown error ({}) in SGX device interface", _0)]
     Other(u32),
+    #[fail(display = "OS error ({}) in SGX device interface", _0)]
+    OS(IoError),
 }
 
 impl From<u32> for LibraryError {
@@ -244,12 +246,25 @@ impl EnclaveLoad for InnerLibrary {
             ) {
                 return Err(Error::Init(error.into()));
             }
-
+            #[cfg(unix)]
             libc::mprotect(
                 mapping.base as _,
                 mapping.size as _,
                 libc::PROT_READ | libc::PROT_WRITE | libc::PROT_EXEC,
             );
+
+            #[cfg(windows)]
+                {
+                    let mut prev_protection : winapi::shared::minwindef::DWORD = 0;
+                    if winapi::um::memoryapi::VirtualProtect(
+                        mapping.base as _,
+                        mapping.size as _,
+                        winapi::um::winnt::PAGE_EXECUTE_READWRITE,
+                        &mut prev_protection
+                    ) == 0 {
+                        return Err(Error::Init(LibraryError::OS(IoError::last_os_error())))
+                    }
+                }
 
             Ok(())
         }
