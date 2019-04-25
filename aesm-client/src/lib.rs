@@ -142,7 +142,7 @@ impl QuoteResult {
     }
 }
 
-#[derive(Default, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct AesmClient {
     inner: imp::AesmClient
 }
