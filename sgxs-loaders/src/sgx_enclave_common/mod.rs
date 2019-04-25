@@ -248,13 +248,15 @@ impl EnclaveLoad for InnerLibrary {
             }
 
             #[cfg(unix)]
-            if libc::mprotect(
-                mapping.base as _,
-                mapping.size as _,
-                libc::PROT_READ | libc::PROT_WRITE | libc::PROT_EXEC,
-            ) == -1 {
-                return Err(Error::Init(LibraryError::OS(IoError::last_os_error())));
-            }
+                {
+                    if libc::mprotect(
+                        mapping.base as _,
+                        mapping.size as _,
+                        libc::PROT_READ | libc::PROT_WRITE | libc::PROT_EXEC,
+                    ) == -1 {
+                        return Err(Error::Init(LibraryError::OS(IoError::last_os_error())));
+                    }
+                }
 
             #[cfg(windows)]
                 {

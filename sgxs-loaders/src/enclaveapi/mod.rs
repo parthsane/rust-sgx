@@ -9,7 +9,7 @@ use winapi::um::enclaveapi::{
 use winapi::um::memoryapi::VirtualFree;
 use winapi::um::processthreadsapi::GetCurrentProcess;
 use winapi::um::winnt::{
-    ENCLAVE_INIT_INFO_SGX, ENCLAVE_TYPE_SGX, HANDLE, MEM_RELEASE, PAGE_ENCLAVE_THREAD_CONTROL,
+    ENCLAVE_INIT_INFO_SGX, ENCLAVE_TYPE_SGX, MEM_RELEASE, PAGE_ENCLAVE_THREAD_CONTROL,
     PAGE_ENCLAVE_UNVALIDATED, PAGE_EXECUTE, PAGE_EXECUTE_READ, PAGE_EXECUTE_READWRITE,
     PAGE_READONLY, PAGE_READWRITE,
 };
@@ -21,6 +21,10 @@ use sgxs_crate::loader;
 use sgxs_crate::sgxs::{MeasEAdd, MeasECreate, PageChunks, SgxsRead};
 
 use crate::{MappingInfo, Tcs};
+
+// workaround as winapi doesn't yet have the definition of ERROR_ENCLAVE_FAILURE
+// issue no:
+const ERROR_ENCLAVE_FAILURE: winapi::shared::minwindef::DWORD = 349;
 
 #[derive(Fail, Debug)]
 pub enum EnclaveApiError {
@@ -128,15 +132,15 @@ impl EnclaveLoad for WinInnerLibrary {
         match PageType::from_repr(eadd.secinfo.flags.page_type()) {
             Some(PageType::Reg) => {}
             Some(PageType::Tcs) => {
-                if eadd
+                if !eadd
                     .secinfo
                     .flags
-                    .contains(SecinfoFlags::R | SecinfoFlags::W | SecinfoFlags::X)
+                    .contains(SecinfoFlags::R | SecinfoFlags::W)
                 {
                     return Err(Error::Add(ErrorKind::InvalidInput.into()));
                 }
-                // NOTE: For some reason the windows API needs the Read flag set but then removes it
-                flags = PAGE_ENCLAVE_THREAD_CONTROL | PAGE_READWRITE;
+                // NOTE: For some reason the windows API needs the Read flag set but then removes it while calling EADD
+                flags |= PAGE_ENCLAVE_THREAD_CONTROL | PAGE_READWRITE;
             }
             _ => return Err(Error::Add(ErrorKind::InvalidInput.into())),
         }
@@ -163,7 +167,7 @@ impl EnclaveLoad for WinInnerLibrary {
                 &mut data_loaded,
                 ptr::null_mut(),
             );
-            if ret == 0 {
+            if ret == winapi::shared::minwindef::FALSE {
                 return Err(Error::Add(IoError::last_os_error()));
             }
             assert_eq!(data_loaded, data.len());
@@ -194,10 +198,12 @@ impl EnclaveLoad for WinInnerLibrary {
                 &init_info as *const _ as *const c_void,
                 mem::size_of::<ENCLAVE_INIT_INFO_SGX>() as _,
                 &mut error,
-            ) == 0
+            ) == winapi::shared::minwindef::FALSE
             {
-                if let Some(e) = ErrorCode::from_repr(error) {
-                    return Err(Error::Init(EnclaveApiError::Ret(e)));
+                if IoError::last_os_error().raw_os_error() == Some(ERROR_ENCLAVE_FAILURE as i32) {
+                    if let Some(e) = ErrorCode::from_repr(error) {
+                        return Err(Error::Init(EnclaveApiError::Ret(e)));
+                    }
                 }
             }
 
@@ -209,7 +215,7 @@ impl EnclaveLoad for WinInnerLibrary {
         unsafe {
             // This returns a boolean
             // Need to do error checking using boolean
-            if VirtualFree(mapping.base as _, 0, MEM_RELEASE) == 0 {
+            if VirtualFree(mapping.base as _, 0, MEM_RELEASE) == winapi::shared::minwindef::FALSE {
                 panic!("Failed to destroy enclave: {}", IoError::last_os_error())
             }
         }
@@ -231,7 +237,7 @@ pub struct DeviceBuilder {
 impl Sgx {
     pub fn new() -> IoResult<DeviceBuilder> {
         let issupported = unsafe { IsEnclaveTypeSupported(ENCLAVE_TYPE_SGX) };
-        if issupported == 0 {
+        if issupported == winapi::shared::minwindef::FALSE {
             return Err(IoError::last_os_error());
         }
 

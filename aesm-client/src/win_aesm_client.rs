@@ -1,4 +1,4 @@
-use std::io::ErrorKind;
+use std::io::{Error as IoError, ErrorKind};
 use std::ptr;
 
 use winapi::_core::ffi::c_void;
@@ -10,30 +10,30 @@ use winapi::shared::winerror::{S_FALSE, S_OK};
 use winapi::um::combaseapi::{CoCreateInstance, CoInitializeEx, CoUninitialize, CLSCTX_ALL};
 use winapi::um::objbase::{COINIT_DISABLE_OLE1DDE, COINIT_MULTITHREADED};
 
-pub use error::{Error, Result};
-use {AesmClient, QuoteInfo, QuoteResult, QuoteType};
+use error::{Error, Result};
+use {QuoteInfo, QuoteResult, QuoteType};
 
 type AesmError = UINT32;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 struct AesmInterface {
-    pub vtbl: *mut AesmInterfaceVtbl,
+    vtbl: *mut AesmInterfaceVtbl,
 }
 
 #[repr(C)]
 #[derive(Copy, Clone)]
-pub struct AesmInterfaceVtbl {
-    pub query_interface: Option<
+struct AesmInterfaceVtbl {
+    query_interface: Option<
         unsafe extern "system" fn(
             this: *mut AesmInterface,
             riid: *const IID,
             object: *mut *mut ::std::os::raw::c_void,
         ) -> HRESULT,
     >,
-    pub add_ref: Option<unsafe extern "system" fn(this: *mut AesmInterface) -> ULONG>,
-    pub release: Option<unsafe extern "system" fn(this: *mut AesmInterface) -> ULONG>,
-    pub get_license_token: Option<
+    add_ref: Option<unsafe extern "system" fn(this: *mut AesmInterface) -> ULONG>,
+    release: Option<unsafe extern "system" fn(this: *mut AesmInterface) -> ULONG>,
+    get_license_token: Option<
         unsafe extern "system" fn(
             this: *mut AesmInterface,
             mrenclave: *const u8,
@@ -47,7 +47,7 @@ pub struct AesmInterfaceVtbl {
             result: *mut AesmError,
         ) -> HRESULT,
     >,
-    pub init_quote: Option<
+    init_quote: Option<
         unsafe extern "system" fn(
             this: *mut AesmInterface,
             target_info: *mut u8,
@@ -57,7 +57,7 @@ pub struct AesmInterfaceVtbl {
             result: *mut AesmError,
         ) -> HRESULT,
     >,
-    pub get_quote: Option<
+    get_quote: Option<
         unsafe extern "system" fn(
             this: *mut AesmInterface,
             report: *const u8,
@@ -76,7 +76,7 @@ pub struct AesmInterfaceVtbl {
             result: *mut AesmError,
         ) -> HRESULT,
     >,
-    pub create_session: Option<
+    create_session: Option<
         unsafe extern "system" fn(
             this: *mut AesmInterface,
             session_id: *mut u32,
@@ -85,7 +85,7 @@ pub struct AesmInterfaceVtbl {
             result: *mut AesmError,
         ) -> HRESULT,
     >,
-    pub exchange_report: Option<
+    exchange_report: Option<
         unsafe extern "system" fn(
             this: *mut AesmInterface,
             session_id: u32,
@@ -96,14 +96,14 @@ pub struct AesmInterfaceVtbl {
             result: *mut AesmError,
         ) -> HRESULT,
     >,
-    pub close_session: Option<
+    close_session: Option<
         unsafe extern "system" fn(
             this: *mut AesmInterface,
             session_id: u32,
             result: *mut AesmError,
         ) -> HRESULT,
     >,
-    pub invoke_service: Option<
+    invoke_service: Option<
         unsafe extern "system" fn(
             this: *mut AesmInterface,
             pse_message_req: *mut u8,
@@ -113,7 +113,7 @@ pub struct AesmInterfaceVtbl {
             result: *mut AesmError,
         ) -> HRESULT,
     >,
-    pub report_attestation_status: Option<
+    report_attestation_status: Option<
         unsafe extern "system" fn(
             this: *mut AesmInterface,
             platform_info: *mut u8,
@@ -124,14 +124,14 @@ pub struct AesmInterfaceVtbl {
             result: *mut AesmError,
         ) -> HRESULT,
     >,
-    pub get_ps_cap: Option<
+    get_ps_cap: Option<
         unsafe extern "system" fn(
             this: *mut AesmInterface,
             ps_cap: *mut u64,
             result: *mut AesmError,
         ) -> HRESULT,
     >,
-    pub sgx_register: Option<
+    sgx_register: Option<
         unsafe extern "system" fn(
             this: *mut AesmInterface,
             white_list_cert: *mut u8,
@@ -140,7 +140,7 @@ pub struct AesmInterfaceVtbl {
             result: *mut AesmError,
         ) -> HRESULT,
     >,
-    pub proxy_setting_assist: Option<
+    proxy_setting_assist: Option<
         unsafe extern "system" fn(
             this: *mut AesmInterface,
             proxy_info: *mut u8,
@@ -148,21 +148,21 @@ pub struct AesmInterfaceVtbl {
             result: *mut AesmError,
         ) -> HRESULT,
     >,
-    pub query_sgx_status: Option<
+    query_sgx_status: Option<
         unsafe extern "system" fn(
             this: *mut AesmInterface,
             sgx_status: *mut u32,
             result: *mut AesmError,
         ) -> HRESULT,
     >,
-    pub get_whitelist_size: Option<
+    get_whitelist_size: Option<
         unsafe extern "system" fn(
             this: *mut AesmInterface,
             white_list_size: *mut u32,
             result: *mut AesmError,
         ) -> HRESULT,
     >,
-    pub get_white_list: Option<
+    get_white_list: Option<
         unsafe extern "system" fn(
             this: *mut AesmInterface,
             white_list: *mut u8,
@@ -170,28 +170,28 @@ pub struct AesmInterfaceVtbl {
             result: *mut AesmError,
         ) -> HRESULT,
     >,
-    pub get_sec_domain_id: Option<
+    get_sec_domain_id: Option<
         unsafe extern "system" fn(
             this: *mut AesmInterface,
             sec_domain_id: *mut u32,
             result: *mut AesmError,
         ) -> HRESULT,
     >,
-    pub switch_sec_domain: Option<
+    switch_sec_domain: Option<
         unsafe extern "system" fn(
             this: *mut AesmInterface,
             sec_domain_id: u32,
             result: *mut AesmError,
         ) -> HRESULT,
     >,
-    pub get_epid_provision_status: Option<
+    get_epid_provision_status: Option<
         unsafe extern "system" fn(
             this: *mut AesmInterface,
             epid_pr_status: *mut u32,
             result: *mut AesmError,
         ) -> HRESULT,
     >,
-    pub get_platform_service_status: Option<
+    get_platform_service_status: Option<
         unsafe extern "system" fn(
             this: *mut AesmInterface,
             pse_status: *mut u32,
@@ -200,13 +200,13 @@ pub struct AesmInterfaceVtbl {
     >,
 }
 
-const clsid_aesminterface: CLSID = CLSID {
+const CLSID_AESMINTERFACE: CLSID = CLSID {
     Data1: 0x82367CAB,
     Data2: 0xF2B9,
     Data3: 0x461A,
     Data4: [0xB6, 0xC6, 0x88, 0x9D, 0x13, 0xEF, 0xC6, 0xCA],
 };
-const iid_iaesminterface: IID = IID {
+const IID_IAESMINTERFACE: IID = IID {
     Data1: 0x50AFD900,
     Data2: 0xF309,
     Data3: 0x4557,
@@ -224,15 +224,14 @@ impl Drop for AesmClient {
     }
 }
 
-#[derive(Default, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct AesmClient {
-    interface: *mut win_aesm_client::AesmInterface,
+    interface: *mut AesmInterface,
 }
 
 impl AesmClient {
-    pub fn new() -> Result<Self> {
-        let aesm_client = AesmClient::create_instance()?;
-        Ok(aesm_client)
+    pub fn new() -> Self {
+        AesmClient::create_instance().unwrap()
     }
 
     fn create_instance() -> Result<Self> {
@@ -244,20 +243,20 @@ impl AesmClient {
             );
             if res != S_OK && res != S_FALSE {
                 return Err(Error::AesmCommunication(
-                    ErrorKind::Other("Fail to initialize Com interface").into(),
-                ));
+                    IoError::new(ErrorKind::Other,"Fail to initialize Com interface"))
+                );
             }
             let res = CoCreateInstance(
-                &clsid_aesminterface,
+                &CLSID_AESMINTERFACE,
                 ptr::null_mut(),
                 CLSCTX_ALL,
-                &iid_iaesminterface,
+                &IID_IAESMINTERFACE,
                 &mut instance as *mut _ as *mut *mut c_void,
             );
             if res < 0 {
                 return Err(Error::AesmCommunication(
-                    ErrorKind::Other("Fail to create Aesm Interface").into(),
-                ));
+                    IoError::new(ErrorKind::Other, "Fail to create Aesm Interface"))
+                );
             }
         }
         Ok(AesmClient {
@@ -296,7 +295,7 @@ impl AesmClient {
         sig_rl: Vec<u8>,
     ) -> Result<QuoteResult> {
         use sgx_isa::Report;
-        let nonce: [u8; 64];
+        let nonce = [0u8; 64];
         let quote_buffer_size = session.quote_buffer_size(&sig_rl);
         let mut qe_report: Vec<u8> = vec![0; Report::UNPADDED_SIZE];
         let mut quote: Vec<u8> = vec![0; quote_buffer_size as usize];
