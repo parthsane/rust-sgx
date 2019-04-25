@@ -7,7 +7,7 @@ use byteorder::{LittleEndian, NativeEndian, ReadBytesExt, WriteBytesExt};
 use protobuf::Message;
 use unix_socket::UnixStream;
 pub use error::{AesmError, Error, Result};
-use {QuoteResult, QuoteType, QuoteInfo, AesmClient, AesmRequest, FromResponse, Request_GetLaunchTokenRequest, Request_GetQuoteRequest, Request_InitQuoteRequest};
+use {QuoteResult, QuoteType, QuoteInfo, AesmRequest, FromResponse, Request_GetLaunchTokenRequest, Request_GetQuoteRequest, Request_InitQuoteRequest};
 
 /// This timeout is an argument in AESM request protobufs.
 ///
@@ -19,6 +19,11 @@ const LOCAL_AESM_TIMEOUT_US: u32 = 1_000_000;
 /// This value should be used for requests that might need interaction with
 /// remote servers, such as provisioning EPID.
 const REMOTE_AESM_TIMEOUT_US: u32 = 30_000_000;
+
+#[derive(Default, Debug, Clone)]
+pub struct AesmClient {
+    path: Option<PathBuf>,
+}
 
 impl AesmClient {
     pub fn new() -> Self {

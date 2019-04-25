@@ -24,7 +24,7 @@ extern crate sgxs;
 #[cfg(unix)]
 extern crate unix_socket;
 #[cfg(unix)]
-use std::path::PathBuf;
+use std::path::Path;
 #[cfg(feature = "sgxs")]
 use std::result::Result as StdResult;
 
@@ -44,9 +44,12 @@ extern crate winapi;
 #[cfg(windows)]
 extern crate sgx_isa;
 #[cfg(windows)]
-mod win_aesm_client;
+#[path = "win_aesm_client.rs"]
+mod imp;
 #[cfg(unix)]
-mod unix_aesm_client;
+#[path = "unix_aesm_client.rs"]
+mod imp;
+
 // From SDK aesm_error.h
 const AESM_SUCCESS: u32 = 0;
 
@@ -142,15 +145,53 @@ impl QuoteResult {
         &self.qe_report
     }
 }
-#[cfg(windows)]
-#[derive(Debug, Clone)]
-pub struct AesmClient {
-    interface: *mut win_aesm_client::AesmInterfaceT
-}
-#[cfg(unix)]
+
 #[derive(Default, Debug, Clone)]
 pub struct AesmClient {
-    path: Option<PathBuf>,
+    inner: imp::AesmClient
+}
+
+impl AesmClient {
+    pub fn new() -> Self {
+        AesmClient { inner: imp::AesmClient::new() }
+    }
+
+    #[cfg(unix)]
+    pub fn with_path<P: AsRef<Path>>(path: P) -> Self {
+        AesmClient { inner: imp::AesmClient::with_path(path) }
+    }
+
+    pub fn init_quote(&self) -> Result<QuoteInfo> {
+        self.inner.init_quote()
+    }
+
+    pub fn get_quote(
+        &self,
+        session: &QuoteInfo,
+        report: Vec<u8>,
+        spid: Vec<u8>,
+        sig_rl: Vec<u8>,
+    ) -> Result<QuoteResult> {
+        self.inner.get_quote(
+            session,
+            report,
+            spid,
+            sig_rl,
+        )
+    }
+
+    pub fn get_launch_token(
+        &self,
+        mr_enclave: Vec<u8>,
+        signer_modulus: Vec<u8>,
+        attributes: Vec<u8>,
+    ) -> Result<Vec<u8>> {
+        self.inner.get_launch_token(
+            mr_enclave,
+            signer_modulus,
+            attributes
+        )
+    }
 }
 
 #[cfg(feature = "sgxs")]

@@ -21,7 +21,7 @@ path = "src/sgx_detect/proc_macro.rs"
 
 [[bin]]
 name = "isgx-pe2sgx"
-required-features = ["pe2sgx"]
+required-features = ["pe2sgxs"]
 
 [[bin]]
 name = "sgx-detect"
@@ -64,7 +64,7 @@ serde_yaml = "0.8.8"                             # MIT/Apache-2.0
 pe = { version = "0.1", optional = true }        # GPL
 
 [features]
-pe2sgx = ["pe", "broadcast"]
+pe2sgxs = ["pe", "broadcast"]
 docs = []
 
 [package.metadata.docs.rs]
