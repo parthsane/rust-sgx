@@ -1,19 +1,24 @@
-use std::{mem, ptr};
+use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::sync::Arc;
-use std::io::{Error as IoError, Result as IoResult, ErrorKind};
+use std::{mem, ptr};
 
+use winapi::ctypes::c_void;
+use winapi::um::enclaveapi::{
+    CreateEnclave, InitializeEnclave, IsEnclaveTypeSupported, LoadEnclaveData,
+};
 use winapi::um::memoryapi::VirtualFree;
 use winapi::um::processthreadsapi::GetCurrentProcess;
-use winapi::um::winnt::{HANDLE, ENCLAVE_INIT_INFO_SGX, MEM_RELEASE, PAGE_ENCLAVE_THREAD_CONTROL, PAGE_ENCLAVE_UNVALIDATED,
-                        PAGE_READONLY, PAGE_READWRITE, PAGE_EXECUTE, PAGE_EXECUTE_READ, PAGE_EXECUTE_READWRITE, ENCLAVE_TYPE_SGX};
-use winapi::um::enclaveapi::{CreateEnclave, InitializeEnclave, IsEnclaveTypeSupported, LoadEnclaveData};
-use winapi::ctypes::c_void;
+use winapi::um::winnt::{
+    ENCLAVE_INIT_INFO_SGX, ENCLAVE_TYPE_SGX, HANDLE, MEM_RELEASE, PAGE_ENCLAVE_THREAD_CONTROL,
+    PAGE_ENCLAVE_UNVALIDATED, PAGE_EXECUTE, PAGE_EXECUTE_READ, PAGE_EXECUTE_READWRITE,
+    PAGE_READONLY, PAGE_READWRITE,
+};
 
 use abi::{Attributes, Einittoken, ErrorCode, Miscselect, PageType, SecinfoFlags, Secs, Sigstruct};
-use sgxs_crate::sgxs::{MeasEAdd, MeasECreate, PageChunks, SgxsRead};
+use generic::{self, EinittokenError, EnclaveLoad, Mapping};
 use sgxs_crate::einittoken::EinittokenProvider;
 use sgxs_crate::loader;
-use generic::{self, EinittokenError, EnclaveLoad, Mapping};
+use sgxs_crate::sgxs::{MeasEAdd, MeasECreate, PageChunks, SgxsRead};
 
 use crate::{MappingInfo, Tcs};
 
@@ -39,8 +44,8 @@ pub enum Error {
 
 impl EinittokenError for Error {
     fn is_einittoken_error(&self) -> bool {
-        use self::Error::Init;
         use self::EnclaveApiError::Ret;
+        use self::Error::Init;
         match self {
             &Init(Ret(ErrorCode::InvalidEinitToken)) |
             &Init(Ret(ErrorCode::InvalidCpusvn)) |
@@ -77,7 +82,7 @@ impl EnclaveLoad for WinInnerLibrary {
                 ENCLAVE_TYPE_SGX,
                 &secs as *const _ as *const c_void,
                 mem::size_of::<Secs>() as _,
-                ptr::null_mut()
+                ptr::null_mut(),
             )
         };
 
@@ -97,7 +102,6 @@ impl EnclaveLoad for WinInnerLibrary {
         mapping: &mut Mapping<Self>,
         page: (MeasEAdd, PageChunks, [u8; 4096]),
     ) -> Result<(), Self::Error> {
-
         let (eadd, chunks, data) = page;
 
         if eadd
@@ -107,7 +111,10 @@ impl EnclaveLoad for WinInnerLibrary {
         {
             return Err(Error::Add(ErrorKind::InvalidInput.into()));
         }
-        let mut flags =  match (eadd.secinfo.flags & (SecinfoFlags::R | SecinfoFlags::W | SecinfoFlags::X)).bits() {
+        let mut flags = match (eadd.secinfo.flags
+            & (SecinfoFlags::R | SecinfoFlags::W | SecinfoFlags::X))
+            .bits()
+        {
             0b000 => 0,
             0b001 => PAGE_READONLY,
             0b010 => return Err(Error::Add(ErrorKind::InvalidInput.into())),
@@ -121,31 +128,40 @@ impl EnclaveLoad for WinInnerLibrary {
         match PageType::from_repr(eadd.secinfo.flags.page_type()) {
             Some(PageType::Reg) => {}
             Some(PageType::Tcs) => {
-                if eadd.secinfo.flags.contains(SecinfoFlags::R | SecinfoFlags::W | SecinfoFlags::X) {
-                    return Err(Error::Add(ErrorKind::InvalidInput.into()))
+                if eadd
+                    .secinfo
+                    .flags
+                    .contains(SecinfoFlags::R | SecinfoFlags::W | SecinfoFlags::X)
+                {
+                    return Err(Error::Add(ErrorKind::InvalidInput.into()));
                 }
                 // NOTE: For some reason the windows API needs the Read flag set but then removes it
-                flags = PAGE_ENCLAVE_THREAD_CONTROL|PAGE_READWRITE;
-            },
+                flags = PAGE_ENCLAVE_THREAD_CONTROL | PAGE_READWRITE;
+            }
             _ => return Err(Error::Add(ErrorKind::InvalidInput.into())),
         }
         match chunks.0 {
             0 => flags |= PAGE_ENCLAVE_UNVALIDATED,
             0xffff => {}
-            _ => return Err(Error::Add(IoError::new(ErrorKind::Other, "Partially-measured pages not supported on Windows"))),
+            _ => {
+                return Err(Error::Add(IoError::new(
+                    ErrorKind::Other,
+                    "Partially-measured pages not supported on Windows",
+                )))
+            }
         }
         unsafe {
-            let mut data_loaded : usize = 0;
+            let mut data_loaded: usize = 0;
             let ret = LoadEnclaveData(
                 GetCurrentProcess(),
                 (mapping.base + eadd.offset) as _,
-                data.as_ptr() as  *const c_void,
+                data.as_ptr() as *const c_void,
                 data.len(),
                 flags,
                 ptr::null(),
                 0,
                 &mut data_loaded,
-                ptr::null_mut()
+                ptr::null_mut(),
             );
             if ret == 0 {
                 return Err(Error::Add(IoError::last_os_error()));
@@ -160,11 +176,11 @@ impl EnclaveLoad for WinInnerLibrary {
         sigstruct: &Sigstruct,
         einittoken: Option<&Einittoken>,
     ) -> Result<(), Self::Error> {
-        let mut init_info : ENCLAVE_INIT_INFO_SGX = ENCLAVE_INIT_INFO_SGX {
-            SigStruct : [0 ; 1808],
-            Reserved1 : [0 ; 240],
-            EInitToken: [0 ; 304],
-            Reserved2 : [0 ; 1744],
+        let mut init_info: ENCLAVE_INIT_INFO_SGX = ENCLAVE_INIT_INFO_SGX {
+            SigStruct: [0; 1808],
+            Reserved1: [0; 240],
+            EInitToken: [0; 304],
+            Reserved2: [0; 1744],
         };
         init_info.SigStruct.copy_from_slice(&sigstruct.as_ref());
         if let Some(e) = einittoken {
@@ -177,8 +193,9 @@ impl EnclaveLoad for WinInnerLibrary {
                 mapping.base as _,
                 &init_info as *const _ as *const c_void,
                 mem::size_of::<ENCLAVE_INIT_INFO_SGX>() as _,
-                &mut error
-            ) == 0 {
+                &mut error,
+            ) == 0
+            {
                 if let Some(e) = ErrorCode::from_repr(error) {
                     return Err(Error::Init(EnclaveApiError::Ret(e)));
                 }
@@ -192,11 +209,7 @@ impl EnclaveLoad for WinInnerLibrary {
         unsafe {
             // This returns a boolean
             // Need to do error checking using boolean
-            if VirtualFree(
-                mapping.base  as _,
-                0,
-                MEM_RELEASE
-            ) == 0 {
+            if VirtualFree(mapping.base as _, 0, MEM_RELEASE) == 0 {
                 panic!("Failed to destroy enclave: {}", IoError::last_os_error())
             }
         }
@@ -217,7 +230,7 @@ pub struct DeviceBuilder {
 
 impl Sgx {
     pub fn new() -> IoResult<DeviceBuilder> {
-        let issupported = unsafe {IsEnclaveTypeSupported(ENCLAVE_TYPE_SGX)};
+        let issupported = unsafe { IsEnclaveTypeSupported(ENCLAVE_TYPE_SGX) };
         if issupported == 0 {
             return Err(IoError::last_os_error());
         }
