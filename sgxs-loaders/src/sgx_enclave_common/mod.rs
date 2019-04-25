@@ -246,21 +246,23 @@ impl EnclaveLoad for InnerLibrary {
             ) {
                 return Err(Error::Init(error.into()));
             }
+
             #[cfg(unix)]
-            libc::mprotect(
+            if libc::mprotect(
                 mapping.base as _,
                 mapping.size as _,
                 libc::PROT_READ | libc::PROT_WRITE | libc::PROT_EXEC,
-            );
+            ) == -1 {
+                return Err(Error::Init(LibraryError::OS(IoError::last_os_error())));
+            }
 
             #[cfg(windows)]
                 {
-                    let mut prev_protection : winapi::shared::minwindef::DWORD = 0;
                     if winapi::um::memoryapi::VirtualProtect(
                         mapping.base as _,
                         mapping.size as _,
                         winapi::um::winnt::PAGE_EXECUTE_READWRITE,
-                        &mut prev_protection
+                        ptr::null_mut()
                     ) == 0 {
                         return Err(Error::Init(LibraryError::OS(IoError::last_os_error())))
                     }
