@@ -258,18 +258,6 @@ impl EnclaveLoad for InnerLibrary {
                     }
                 }
 
-            #[cfg(windows)]
-                {
-                    if winapi::um::memoryapi::VirtualProtect(
-                        mapping.base as _,
-                        mapping.size as _,
-                        winapi::um::winnt::PAGE_EXECUTE_READWRITE,
-                        ptr::null_mut()
-                    ) == 0 {
-                        return Err(Error::Init(LibraryError::OS(IoError::last_os_error())))
-                    }
-                }
-
             Ok(())
         }
     }
