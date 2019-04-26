@@ -152,11 +152,6 @@ impl AesmClient {
         AesmClient { inner: imp::AesmClient::new() }
     }
 
-    #[cfg(unix)]
-    pub fn with_path<P: AsRef<Path>>(path: P) -> Self {
-        AesmClient { inner: imp::AesmClient::with_path(path) }
-    }
-
     pub fn init_quote(&self) -> Result<QuoteInfo> {
         self.inner.init_quote()
     }
