@@ -7,7 +7,7 @@ use byteorder::{LittleEndian, NativeEndian, ReadBytesExt, WriteBytesExt};
 use protobuf::Message;
 use unix_socket::UnixStream;
 pub use error::{AesmError, Error, Result};
-use {QuoteResult, QuoteType, QuoteInfo, AesmClient, AesmRequest, FromResponse, Request_GetLaunchTokenRequest, Request_GetQuoteRequest, Request_InitQuoteRequest};
+use {QuoteResult, QuoteType, QuoteInfo, AesmRequest, FromResponse, Request_GetLaunchTokenRequest, Request_GetQuoteRequest, Request_InitQuoteRequest};
 
 /// This timeout is an argument in AESM request protobufs.
 ///
@@ -20,15 +20,38 @@ const LOCAL_AESM_TIMEOUT_US: u32 = 1_000_000;
 /// remote servers, such as provisioning EPID.
 const REMOTE_AESM_TIMEOUT_US: u32 = 30_000_000;
 
+#[derive(Default, Debug, Clone)]
+pub struct AesmClient {
+    path: Option<PathBuf>,
+}
+
+mod unix {
+    use std::path::Path;
+
+    pub trait InitWithPathExt {
+        fn with_path<P: AsRef<Path>>(path: P) -> Self;
+    }
+
+    impl InitWithPathExt for super::AesmClient {
+        fn with_path<P: AsRef<Path>>(path: P) -> Self {
+            super::AesmClient {
+                path: Some(path.as_ref().to_owned()),
+            }
+        }
+    }
+
+    impl InitWithPathExt for crate::AesmClient {
+        fn with_path<P: AsRef<Path>>(path: P) -> Self {
+            crate::AesmClient {
+                inner : super::AesmClient::with_path(path)
+            }
+        }
+    }
+}
+
 impl AesmClient {
     pub fn new() -> Self {
         Default::default()
-    }
-
-    pub fn with_path<P: AsRef<Path>>(path: P) -> Self {
-        AesmClient {
-            path: Some(path.as_ref().to_owned()),
-        }
     }
 
     fn open_socket(&self) -> Result<UnixStream> {

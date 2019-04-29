@@ -15,4 +15,3 @@ members = [
     "sgxs-tools"
 ]
 exclude = ["examples"]
-

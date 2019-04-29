@@ -21,7 +21,7 @@ path = "src/sgx_detect/proc_macro.rs"
 
 [[bin]]
 name = "isgx-pe2sgx"
-required-features = ["pe2sgx"]
+required-features = ["pe2sgxs"]
 
 [[bin]]
 name = "sgx-detect"

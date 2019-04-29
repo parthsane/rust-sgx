@@ -17,7 +17,7 @@ use failure::{Error, ResultExt};
 #[cfg(unix)]
 use sgxs_loaders::isgx::Device as IsgxDevice;
 #[cfg(windows)]
-use sgxs_loaders::enclaveapi::Sgx;
+use sgxs_loaders::enclaveapi::Sgx as IsgxDevice;
 
 
 use clap::{App, Arg};
@@ -47,17 +47,11 @@ fn main() -> Result<(), Error> {
 
     let file = args.value_of("file").unwrap();
 
-    #[cfg(unix)]
-        let mut device = IsgxDevice::new()
-        .context("While opening SGX device")?
-        .einittoken_provider(AesmClient::new())
-        .build();
+    let mut device = IsgxDevice::new()
+    .context("While opening SGX device")?
+    .einittoken_provider(AesmClient::new())
+    .build();
 
-    #[cfg(windows)]
-        let mut device = Sgx::open()
-        .context("While opening SGX device")?
-        .einittoken_provider(AesmClient::new().unwrap())
-        .build();
     let mut enclave_builder = EnclaveBuilder::new(file.as_ref());
 
     match args.value_of("signature").map(|v| v.parse().expect("validated")) {
