@@ -69,8 +69,8 @@ pub enum LibraryError {
     NotInitialized,
     #[fail(display = "Unknown error ({}) in SGX device interface", _0)]
     Other(u32),
-    #[fail(display = "OS error ({}) in SGX device interface", _0)]
-    OS(IoError),
+    #[fail(display = "Failed to adjust the page table permissions: {}", _0)]
+    PageTableFailure(IoError),
 }
 
 impl From<u32> for LibraryError {
@@ -254,7 +254,7 @@ impl EnclaveLoad for InnerLibrary {
                         mapping.size as _,
                         libc::PROT_READ | libc::PROT_WRITE | libc::PROT_EXEC,
                     ) == -1 {
-                        return Err(Error::Init(LibraryError::OS(IoError::last_os_error())));
+                        return Err(Error::Init(LibraryError::PageTableFailure(IoError::last_os_error())));
                     }
                 }
 

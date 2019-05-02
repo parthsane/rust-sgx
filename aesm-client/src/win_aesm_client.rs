@@ -1,4 +1,4 @@
-use std::io::{Error as IoError, ErrorKind};
+use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::ptr;
 
 use winapi::_core::ffi::c_void;
@@ -6,7 +6,7 @@ use winapi::shared::basetsd::UINT32;
 use winapi::shared::guiddef::{CLSID, IID};
 use winapi::shared::minwindef::ULONG;
 use winapi::shared::ntdef::HRESULT;
-use winapi::shared::winerror::{S_FALSE, S_OK};
+use winapi::shared::winerror::SUCCEEDED;
 use winapi::um::combaseapi::{CoCreateInstance, CoInitializeEx, CoUninitialize, CLSCTX_ALL};
 use winapi::um::objbase::{COINIT_DISABLE_OLE1DDE, COINIT_MULTITHREADED};
 
@@ -213,6 +213,25 @@ const IID_IAESMINTERFACE: IID = IID {
     Data4: [0x8F, 0xCB, 0x10, 0xCF, 0xAB, 0x80, 0x2C, 0xDD],
 };
 
+trait HresultExt:Sized {
+    fn into_io_error(self) -> IoResult<Self>;
+}
+
+impl HresultExt for HRESULT {
+    fn into_io_error(self) -> IoResult<HRESULT> {
+        if SUCCEEDED(self) {
+            Ok(self)
+        } else {
+            Err(IoError::from_raw_os_error(self))
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct AesmClient {
+    interface: *mut AesmInterface,
+}
+
 impl Drop for AesmClient {
     fn drop(&mut self) {
         unsafe {
@@ -224,40 +243,31 @@ impl Drop for AesmClient {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct AesmClient {
-    interface: *mut AesmInterface,
-}
-
 impl AesmClient {
-    pub fn new() -> Self {
-        AesmClient::create_instance().unwrap()
+    pub fn new() -> Result<Self> {
+        AesmClient::create_instance()
     }
 
     fn create_instance() -> Result<Self> {
         let mut instance: *mut AesmInterface = std::ptr::null_mut();
         unsafe {
-            let res = CoInitializeEx(
+            CoInitializeEx(
                 ptr::null_mut(),
                 COINIT_MULTITHREADED | COINIT_DISABLE_OLE1DDE,
-            );
-            if res != S_OK && res != S_FALSE {
-                return Err(Error::AesmCommunication(
-                    IoError::new(ErrorKind::Other,"Fail to initialize Com interface"))
-                );
-            }
-            let res = CoCreateInstance(
+            )
+                .into_io_error()
+                .map_err(|e| IoError::new(ErrorKind::Other, format!("Failed to initialize COM: {}", e)) )?;
+
+            CoCreateInstance(
                 &CLSID_AESMINTERFACE,
                 ptr::null_mut(),
                 CLSCTX_ALL,
                 &IID_IAESMINTERFACE,
                 &mut instance as *mut _ as *mut *mut c_void,
-            );
-            if res < 0 {
-                return Err(Error::AesmCommunication(
-                    IoError::new(ErrorKind::Other, "Fail to create Aesm Interface"))
-                );
-            }
+            )
+                .into_io_error()
+                .map_err(|e|
+                    IoError::new(ErrorKind::Other, format!("Fail to create Aesm Interface {}", e)) )?;
         }
         Ok(AesmClient {
             interface: instance,
@@ -270,16 +280,19 @@ impl AesmClient {
         let mut error: AesmError = 0;
         unsafe {
             if let Some(init_quote) = (*(*self.interface).vtbl).init_quote {
-                let ret = init_quote(
+                init_quote(
                     self.interface,
                     target_info.as_mut_ptr(),
                     target_info.len() as _,
                     gid.as_mut_ptr(),
                     gid.len() as _,
                     &mut error as _,
-                );
-                if ret < 0 || error != 0 {
-                    return Err(Error::AesmCode(error.into()));
+                ).into_io_error().
+                    map_err(|e| IoError::new(ErrorKind::Other,
+                                             format!("Fail to init Quote. init_quote returned {}", e)) )?;
+                if error != 0 {
+                    return Err(Error::AesmCommunication(IoError::new(ErrorKind::Other,
+                                             format!("Fail to init Quote with error {}", error))));
                 }
             }
         }
@@ -303,7 +316,7 @@ impl AesmClient {
 
         unsafe {
             if let Some(get_quote) = (*(*self.interface).vtbl).get_quote {
-                let ret = get_quote(
+                get_quote(
                     self.interface,
                     report.as_ptr(),
                     report.len() as _,
@@ -319,9 +332,12 @@ impl AesmClient {
                     quote.as_mut_ptr(),
                     quote_buffer_size,
                     &mut error as _,
-                );
-                if error != 0 || ret < 0 {
-                    return Err(Error::AesmCode(error.into()));
+                ).into_io_error().
+                    map_err(|e| IoError::new(ErrorKind::Other,
+                                             format!("Fail to get Quote. get_quote returned {}", e)) )?;
+                if error != 0 {
+                    return Err(Error::AesmCommunication(IoError::new(ErrorKind::Other,
+                                        format!("Fail to get Quote with error {}", error))));
                 }
             }
         }
@@ -337,7 +353,7 @@ impl AesmClient {
         let mut error: AesmError = 0;
         unsafe {
             if let Some(get_license_token) = (*(*self.interface).vtbl).get_license_token {
-                let ret = get_license_token(
+                get_license_token(
                     self.interface,
                     mr_enclave.as_ptr(),
                     mr_enclave.len() as _,
@@ -348,9 +364,12 @@ impl AesmClient {
                     licence_token.as_mut_ptr(),
                     licence_token.len() as _,
                     &mut error as _,
-                );
-                if ret < 0 || error != 0 {
-                    return Err(Error::AesmCode(error.into()));
+                ).into_io_error().
+                    map_err(|e| IoError::new(ErrorKind::Other,
+                                             format!("Fail to get Launch Token. get_launch_token returned {}", e)) )?;
+                if error != 0 {
+                    return Err(Error::AesmCommunication(IoError::new(ErrorKind::Other,
+                                        format!("Fail to get launch token with error {}", error))));
                 }
             }
         }
