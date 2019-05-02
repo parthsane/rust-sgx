@@ -44,12 +44,13 @@ extern crate winapi;
 #[cfg(windows)]
 extern crate sgx_isa;
 #[cfg(windows)]
-#[path = "win_aesm_client.rs"]
+#[path = "windows/win_aesm_client.rs"]
 mod imp;
 #[cfg(unix)]
-#[path = "unix_aesm_client.rs"]
+#[path = "unix/unix_aesm_client.rs"]
 mod imp;
-
+#[cfg(unix)]
+pub mod unix;
 // From SDK aesm_error.h
 const AESM_SUCCESS: u32 = 0;
 
@@ -152,8 +153,12 @@ pub struct AesmClient {
 }
 
 impl AesmClient {
-    pub fn new() -> Self {
-        AesmClient { inner: imp::AesmClient::new() }
+    pub fn new() -> Result<Self> {
+        let aesm_client = imp::AesmClient::new();
+        match aesm_client {
+            Ok(inner) => Ok(AesmClient {inner}),
+            Err(e) => Err(e),
+        }
     }
 
     pub fn init_quote(&self) -> Result<QuoteInfo> {

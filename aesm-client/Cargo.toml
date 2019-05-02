@@ -41,12 +41,11 @@ failure_derive = "0.1.1"   # MIT/Apache-2.0
 # the future, https://github.com/rust-lang/rust/issues/42048 might provide std
 # support. In addition, we need UnixStream::connect_timeout, which may be
 # provided by https://github.com/rust-lang/rust/issues/53615.
-# support.
 unix_socket2 = "0.5.4"     # MIT/Apache-2.0
 
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3.7", features = ["combaseapi", "enclaveapi", "memoryapi", "objbase"] }
-sgx-isa = { version = "0.2.0-rc1", path = "../sgx-isa" }
+sgx-isa = { version = "0.2.0", path = "../sgx-isa" }
 
 [build-dependencies]
 protoc-rust = "1.4" # MIT/Apache-2.0
@@ -55,7 +54,3 @@ protoc-rust = "1.4" # MIT/Apache-2.0
 sgx-isa = { version = "0.2.0", path = "../sgx-isa" }
 "report-test" = { version = "0.1.0", path = "../report-test" }
 "sgxs-loaders" = { version = "0.1.0", path = "../sgxs-loaders" }
-
-[target.'cfg(windows)'.dependencies]
-winapi = { version = "0.3", features = ["combaseapi", "enclaveapi", "memoryapi", "objbase"] }
-sgx-isa = { version = "0.2.0-rc1", path = "../sgx-isa" }
