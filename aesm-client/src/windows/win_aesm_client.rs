@@ -248,6 +248,21 @@ impl AesmClient {
         AesmClient::create_instance()
     }
 
+    fn initialize_com(&self) -> Result<HRESULT> {
+        unsafe {
+            CoInitializeEx(
+                ptr::null_mut(),
+                COINIT_MULTITHREADED | COINIT_DISABLE_OLE1DDE,
+            )
+                .into_io_error()
+                .map_err(|e| Error::AesmCommunication(IoError::new(ErrorKind::Other, format!("Failed to initialize COM: {}", e))) )
+        }
+    }
+
+    pub fn try_connect(&self) -> Result<()> {
+        self.initialize_com().map(|_| ())
+    }
+
     fn create_instance() -> Result<Self> {
         let mut instance: *mut AesmInterface = std::ptr::null_mut();
         unsafe {
