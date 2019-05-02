@@ -44,12 +44,13 @@ extern crate winapi;
 #[cfg(windows)]
 extern crate sgx_isa;
 #[cfg(windows)]
-#[path = "win_aesm_client.rs"]
-pub mod imp;
+#[path = "windows/win_aesm_client.rs"]
+mod imp;
 #[cfg(unix)]
-#[path = "unix_aesm_client.rs"]
-pub mod imp;
-
+#[path = "unix/unix_aesm_client.rs"]
+mod imp;
+#[cfg(unix)]
+pub mod unix;
 // From SDK aesm_error.h
 const AESM_SUCCESS: u32 = 0;
 

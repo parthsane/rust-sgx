@@ -25,27 +25,15 @@ pub struct AesmClient {
     path: Option<PathBuf>,
 }
 
-pub mod unix {
-    use std::path::Path;
-
-    pub trait AesmClientExt {
-        fn with_path<P: AsRef<Path>>(path: P) -> Self;
-    }
-
-    impl AesmClientExt for crate::AesmClient {
-        fn with_path<P: AsRef<Path>>(path: P) -> Self {
-            crate::AesmClient {
-                inner : super::AesmClient {
-                    path: Some(path.as_ref().to_owned()),
-                }
-            }
-        }
-    }
-}
-
 impl AesmClient {
     pub fn new() -> Result<Self> {
         Ok(Default::default())
+    }
+
+    pub fn with_path<P: AsRef<Path>>(path: P) -> Self {
+        AesmClient {
+            path: Some(path.as_ref().to_owned()),
+        }
     }
 
     fn open_socket(&self) -> Result<UnixStream> {
