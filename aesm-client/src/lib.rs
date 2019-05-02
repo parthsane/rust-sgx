@@ -161,6 +161,15 @@ impl AesmClient {
         }
     }
 
+    /// Test the connection with AESM.
+    ///
+    /// This should only be used for diagnostic purposes. This method returning
+    /// `Ok` is not a guarantee that any of the other methods will function
+    /// correctly.
+    pub fn try_connect(&self) -> Result<()> {
+        self.inner.try_connect()
+    }
+
     pub fn init_quote(&self) -> Result<QuoteInfo> {
         self.inner.init_quote()
     }

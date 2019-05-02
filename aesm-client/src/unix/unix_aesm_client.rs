@@ -68,6 +68,10 @@ impl AesmClient {
         Ok(sock)
     }
 
+    pub fn try_connect(&self) -> Result<()> {
+        self.open_socket().map(|_| ())
+    }
+
     fn transact<T: AesmRequest>(&self, req: T) -> Result<T::Response> {
         let mut sock = self.open_socket()?;
 
