@@ -49,7 +49,7 @@ fn main() -> Result<(), Error> {
 
     let mut device = IsgxDevice::new()
     .context("While opening SGX device")?
-    .einittoken_provider(AesmClient::new())
+    .einittoken_provider(AesmClient::new()?)
     .build();
 
     let mut enclave_builder = EnclaveBuilder::new(file.as_ref());
