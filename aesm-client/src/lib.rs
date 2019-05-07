@@ -23,13 +23,15 @@ extern crate protobuf;
 extern crate sgxs;
 #[cfg(unix)]
 extern crate unix_socket;
-#[cfg(unix)]
-use std::path::Path;
+#[cfg(windows)]
+extern crate winapi;
+#[cfg(windows)]
+extern crate sgx_isa;
+
 #[cfg(feature = "sgxs")]
 use std::result::Result as StdResult;
 
 use protobuf::ProtobufResult;
-
 #[cfg(feature = "sgxs")]
 use sgxs::einittoken::{Einittoken, EinittokenProvider};
 #[cfg(feature = "sgxs")]
@@ -40,20 +42,22 @@ mod error;
 use self::aesm_proto::*;
 pub use error::{AesmError, Error, Result};
 #[cfg(windows)]
-extern crate winapi;
-#[cfg(windows)]
-extern crate sgx_isa;
-#[cfg(windows)]
 #[path = "windows/win_aesm_client.rs"]
 mod imp;
 #[cfg(unix)]
 #[path = "unix/unix_aesm_client.rs"]
 mod imp;
 #[cfg(unix)]
-pub mod unix;
+pub mod unix {
+    use std::path::Path;
+    use imp::AesmClient;
+    pub trait AesmClientExt {
+        fn with_path<P: AsRef<Path>>(path: P) -> Self;
+    }
+}
+
 // From SDK aesm_error.h
 const AESM_SUCCESS: u32 = 0;
-
 
 // From SDK sgx_quote.h
 #[repr(u32)]
@@ -154,11 +158,7 @@ pub struct AesmClient {
 
 impl AesmClient {
     pub fn new() -> Result<Self> {
-        let aesm_client = imp::AesmClient::new();
-        match aesm_client {
-            Ok(inner) => Ok(AesmClient {inner}),
-            Err(e) => Err(e),
-        }
+        imp::AesmClient::new().map(|inner| AesmClient { inner })
     }
 
     /// Test the connection with AESM.

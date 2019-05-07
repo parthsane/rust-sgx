@@ -135,7 +135,7 @@ impl EnclaveLoad for WinInnerLibrary {
                 if !eadd
                     .secinfo
                     .flags
-                    .contains(SecinfoFlags::PT_B0)
+                    .contains(SecinfoFlags::R)
                 {
                     return Err(Error::Add(ErrorKind::InvalidInput.into()));
                 }

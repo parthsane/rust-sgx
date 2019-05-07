@@ -303,11 +303,9 @@ impl AesmClient {
                     gid.len() as _,
                     &mut error as _,
                 ).into_io_error().
-                    map_err(|e| IoError::new(ErrorKind::Other,
-                                             format!("Fail to init Quote. init_quote returned {}", e)) )?;
+                    map_err(|e| IoError::new(ErrorKind::Other, e) )?;
                 if error != 0 {
-                    return Err(Error::AesmCommunication(IoError::new(ErrorKind::Other,
-                                             format!("Fail to init Quote with error {}", error))));
+                    return Err(Error::AesmCode( error.into()) );
                 }
             }
         }
@@ -348,11 +346,9 @@ impl AesmClient {
                     quote_buffer_size,
                     &mut error as _,
                 ).into_io_error().
-                    map_err(|e| IoError::new(ErrorKind::Other,
-                                             format!("Fail to get Quote. get_quote returned {}", e)) )?;
+                    map_err(|e| IoError::new(ErrorKind::Other, e) )?;
                 if error != 0 {
-                    return Err(Error::AesmCommunication(IoError::new(ErrorKind::Other,
-                                        format!("Fail to get Quote with error {}", error))));
+                    return Err(Error::AesmCode( error.into()));
                 }
             }
         }
@@ -380,11 +376,9 @@ impl AesmClient {
                     licence_token.len() as _,
                     &mut error as _,
                 ).into_io_error().
-                    map_err(|e| IoError::new(ErrorKind::Other,
-                                             format!("Fail to get Launch Token. get_launch_token returned {}", e)) )?;
+                    map_err(|e| IoError::new(ErrorKind::Other, e) )?;
                 if error != 0 {
-                    return Err(Error::AesmCommunication(IoError::new(ErrorKind::Other,
-                                        format!("Fail to get launch token with error {}", error))));
+                    return Err(Error::AesmCode( error.into()));
                 }
             }
         }

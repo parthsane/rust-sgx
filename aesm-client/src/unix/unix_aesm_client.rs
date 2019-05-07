@@ -20,20 +20,14 @@ const LOCAL_AESM_TIMEOUT_US: u32 = 1_000_000;
 /// remote servers, such as provisioning EPID.
 const REMOTE_AESM_TIMEOUT_US: u32 = 30_000_000;
 
-#[derive(Default, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct AesmClient {
     path: Option<PathBuf>,
 }
 
 impl AesmClient {
     pub fn new() -> Result<Self> {
-        Ok(Default::default())
-    }
-
-    pub fn with_path<P: AsRef<Path>>(path: P) -> Self {
-        AesmClient {
-            path: Some(path.as_ref().to_owned()),
-        }
+        Ok(AesmClient { path: None })
     }
 
     fn open_socket(&self) -> Result<UnixStream> {
@@ -166,5 +160,15 @@ impl AesmClient {
         let token = res.take_token();
 
         Ok(token)
+    }
+}
+
+impl crate::unix::AesmClientExt for crate::AesmClient {
+    fn with_path<P: AsRef<Path>>(path: P) -> Self {
+        crate::AesmClient {
+            inner :  self::AesmClient {
+                path: Some(path.as_ref().to_owned()),
+            }
+        }
     }
 }
