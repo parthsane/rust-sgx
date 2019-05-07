@@ -17,7 +17,7 @@ type AesmError = UINT32;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
-struct AesmInterface {
+struct InnerAesmInterface {
     vtbl: *mut AesmInterfaceVtbl,
 }
 
@@ -26,16 +26,16 @@ struct AesmInterface {
 struct AesmInterfaceVtbl {
     query_interface: Option<
         unsafe extern "system" fn(
-            this: *mut AesmInterface,
+            this: *mut InnerAesmInterface,
             riid: *const IID,
             object: *mut *mut ::std::os::raw::c_void,
         ) -> HRESULT,
     >,
-    add_ref: Option<unsafe extern "system" fn(this: *mut AesmInterface) -> ULONG>,
-    release: Option<unsafe extern "system" fn(this: *mut AesmInterface) -> ULONG>,
+    add_ref: Option<unsafe extern "system" fn(this: *mut InnerAesmInterface) -> ULONG>,
+    release: Option<unsafe extern "system" fn(this: *mut InnerAesmInterface) -> ULONG>,
     get_license_token: Option<
         unsafe extern "system" fn(
-            this: *mut AesmInterface,
+            this: *mut InnerAesmInterface,
             mrenclave: *const u8,
             mrenclave_size: u32,
             public_key: *const u8,
@@ -49,7 +49,7 @@ struct AesmInterfaceVtbl {
     >,
     init_quote: Option<
         unsafe extern "system" fn(
-            this: *mut AesmInterface,
+            this: *mut InnerAesmInterface,
             target_info: *mut u8,
             target_info_size: u32,
             gid: *mut u8,
@@ -59,7 +59,7 @@ struct AesmInterfaceVtbl {
     >,
     get_quote: Option<
         unsafe extern "system" fn(
-            this: *mut AesmInterface,
+            this: *mut InnerAesmInterface,
             report: *const u8,
             report_size: u32,
             type_: u32,
@@ -78,7 +78,7 @@ struct AesmInterfaceVtbl {
     >,
     create_session: Option<
         unsafe extern "system" fn(
-            this: *mut AesmInterface,
+            this: *mut InnerAesmInterface,
             session_id: *mut u32,
             se_dh_msg1: *mut u8,
             se_dh_msg1_size: u32,
@@ -87,7 +87,7 @@ struct AesmInterfaceVtbl {
     >,
     exchange_report: Option<
         unsafe extern "system" fn(
-            this: *mut AesmInterface,
+            this: *mut InnerAesmInterface,
             session_id: u32,
             se_dh_msg2: *mut u8,
             se_dh_msg2_size: u32,
@@ -98,14 +98,14 @@ struct AesmInterfaceVtbl {
     >,
     close_session: Option<
         unsafe extern "system" fn(
-            this: *mut AesmInterface,
+            this: *mut InnerAesmInterface,
             session_id: u32,
             result: *mut AesmError,
         ) -> HRESULT,
     >,
     invoke_service: Option<
         unsafe extern "system" fn(
-            this: *mut AesmInterface,
+            this: *mut InnerAesmInterface,
             pse_message_req: *mut u8,
             pse_message_req_size: u32,
             pse_message_resp: *mut u8,
@@ -115,7 +115,7 @@ struct AesmInterfaceVtbl {
     >,
     report_attestation_status: Option<
         unsafe extern "system" fn(
-            this: *mut AesmInterface,
+            this: *mut InnerAesmInterface,
             platform_info: *mut u8,
             platform_info_size: u32,
             attestation_status: u32,
@@ -126,14 +126,14 @@ struct AesmInterfaceVtbl {
     >,
     get_ps_cap: Option<
         unsafe extern "system" fn(
-            this: *mut AesmInterface,
+            this: *mut InnerAesmInterface,
             ps_cap: *mut u64,
             result: *mut AesmError,
         ) -> HRESULT,
     >,
     sgx_register: Option<
         unsafe extern "system" fn(
-            this: *mut AesmInterface,
+            this: *mut InnerAesmInterface,
             white_list_cert: *mut u8,
             white_list_cert_size: u32,
             registration_data_type: u32,
@@ -142,7 +142,7 @@ struct AesmInterfaceVtbl {
     >,
     proxy_setting_assist: Option<
         unsafe extern "system" fn(
-            this: *mut AesmInterface,
+            this: *mut InnerAesmInterface,
             proxy_info: *mut u8,
             proxy_size: u32,
             result: *mut AesmError,
@@ -150,21 +150,21 @@ struct AesmInterfaceVtbl {
     >,
     query_sgx_status: Option<
         unsafe extern "system" fn(
-            this: *mut AesmInterface,
+            this: *mut InnerAesmInterface,
             sgx_status: *mut u32,
             result: *mut AesmError,
         ) -> HRESULT,
     >,
     get_whitelist_size: Option<
         unsafe extern "system" fn(
-            this: *mut AesmInterface,
+            this: *mut InnerAesmInterface,
             white_list_size: *mut u32,
             result: *mut AesmError,
         ) -> HRESULT,
     >,
     get_white_list: Option<
         unsafe extern "system" fn(
-            this: *mut AesmInterface,
+            this: *mut InnerAesmInterface,
             white_list: *mut u8,
             buf_size: u32,
             result: *mut AesmError,
@@ -172,28 +172,28 @@ struct AesmInterfaceVtbl {
     >,
     get_sec_domain_id: Option<
         unsafe extern "system" fn(
-            this: *mut AesmInterface,
+            this: *mut InnerAesmInterface,
             sec_domain_id: *mut u32,
             result: *mut AesmError,
         ) -> HRESULT,
     >,
     switch_sec_domain: Option<
         unsafe extern "system" fn(
-            this: *mut AesmInterface,
+            this: *mut InnerAesmInterface,
             sec_domain_id: u32,
             result: *mut AesmError,
         ) -> HRESULT,
     >,
     get_epid_provision_status: Option<
         unsafe extern "system" fn(
-            this: *mut AesmInterface,
+            this: *mut InnerAesmInterface,
             epid_pr_status: *mut u32,
             result: *mut AesmError,
         ) -> HRESULT,
     >,
     get_platform_service_status: Option<
         unsafe extern "system" fn(
-            this: *mut AesmInterface,
+            this: *mut InnerAesmInterface,
             pse_status: *mut u32,
             result: *mut AesmError,
         ) -> HRESULT,
@@ -229,23 +229,26 @@ impl HresultExt for HRESULT {
 
 #[derive(Debug, Clone)]
 pub struct AesmClient {
-    interface: *mut AesmInterface,
 }
 
-impl Drop for AesmClient {
+struct AesmInterface {
+    inner : *mut InnerAesmInterface,
+}
+
+impl Drop for AesmInterface {
     fn drop(&mut self) {
         unsafe {
-            if let Some(release) = (*(*self.interface).vtbl).release {
-                release(self.interface);
+            if let Some(release) = (*(*self.inner).vtbl).release {
+                release(self.inner);
+                CoUninitialize();
             }
-            CoUninitialize();
         }
     }
 }
 
 impl AesmClient {
     pub fn new() -> Result<Self> {
-        AesmClient::create_instance()
+        Ok(AesmClient{})
     }
 
     fn initialize_com(&self) -> Result<HRESULT> {
@@ -260,11 +263,11 @@ impl AesmClient {
     }
 
     pub fn try_connect(&self) -> Result<()> {
-        self.initialize_com().map(|_| ())
+        self.create_instance().map(|_| ())
     }
 
-    fn create_instance() -> Result<Self> {
-        let mut instance: *mut AesmInterface = std::ptr::null_mut();
+    fn create_instance(&self) -> Result<AesmInterface> {
+        let mut interface: *mut InnerAesmInterface = std::ptr::null_mut();
         unsafe {
             CoInitializeEx(
                 ptr::null_mut(),
@@ -278,15 +281,20 @@ impl AesmClient {
                 ptr::null_mut(),
                 CLSCTX_ALL,
                 &IID_IAESMINTERFACE,
-                &mut instance as *mut _ as *mut *mut c_void,
+                &mut interface as *mut _ as *mut *mut c_void,
             )
                 .into_io_error()
-                .map_err(|e|
-                    IoError::new(ErrorKind::Other, format!("Fail to create Aesm Interface {}", e)) )?;
+                .map_err(|e| {
+                    if interface != ptr::null_mut() {
+                        if let Some(release) = (*(*interface).vtbl).release {
+                            release(interface);
+                            CoUninitialize();
+                        }
+                    }
+                    IoError::new(ErrorKind::Other, format!("Fail to create Aesm Interface {}", e))
+                })?;
         }
-        Ok(AesmClient {
-            interface: instance,
-        })
+        Ok(AesmInterface { inner: interface } )
     }
 
     pub fn init_quote(&self) -> Result<QuoteInfo> {
@@ -294,9 +302,10 @@ impl AesmClient {
         let mut gid: Vec<u8> = vec![0; 4];
         let mut error: AesmError = 0;
         unsafe {
-            if let Some(init_quote) = (*(*self.interface).vtbl).init_quote {
+            let interface = self.create_instance()?;
+            if let Some(init_quote) = (*(*interface.inner).vtbl).init_quote {
                 init_quote(
-                    self.interface,
+                    interface.inner,
                     target_info.as_mut_ptr(),
                     target_info.len() as _,
                     gid.as_mut_ptr(),
@@ -310,6 +319,7 @@ impl AesmClient {
             }
         }
         let quote_info: QuoteInfo = QuoteInfo { target_info, gid };
+
         return Ok(quote_info);
     }
 
@@ -328,9 +338,10 @@ impl AesmClient {
         let mut error: AesmError = 0;
 
         unsafe {
-            if let Some(get_quote) = (*(*self.interface).vtbl).get_quote {
+            let interface = self.create_instance()?;
+            if let Some(get_quote) = (*(*interface.inner).vtbl).get_quote {
                 get_quote(
-                    self.interface,
+                    interface.inner,
                     report.as_ptr(),
                     report.len() as _,
                     QuoteType::Linkable.into(),
@@ -354,6 +365,7 @@ impl AesmClient {
         }
         return Ok(QuoteResult::new(quote, qe_report));
     }
+
     pub fn get_launch_token(
         &self,
         mr_enclave: Vec<u8>,
@@ -363,9 +375,10 @@ impl AesmClient {
         let mut licence_token = vec![0; sgx_isa::Einittoken::UNPADDED_SIZE];
         let mut error: AesmError = 0;
         unsafe {
-            if let Some(get_license_token) = (*(*self.interface).vtbl).get_license_token {
+            let interface = self.create_instance()?;
+            if let Some(get_license_token) = (*(*interface.inner).vtbl).get_license_token {
                 get_license_token(
-                    self.interface,
+                    interface.inner,
                     mr_enclave.as_ptr(),
                     mr_enclave.len() as _,
                     signer_modulus.as_ptr(),
