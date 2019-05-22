@@ -132,11 +132,7 @@ impl EnclaveLoad for WinInnerLibrary {
         match PageType::from_repr(eadd.secinfo.flags.page_type()) {
             Some(PageType::Reg) => {}
             Some(PageType::Tcs) => {
-                if !eadd
-                    .secinfo
-                    .flags
-                    .contains(SecinfoFlags::R)
-                {
+                if !eadd.secinfo.flags.contains(SecinfoFlags::R) {
                     return Err(Error::Add(ErrorKind::InvalidInput.into()));
                 }
                 // NOTE: For some reason the windows API needs the Read flag set but then removes it while calling EADD

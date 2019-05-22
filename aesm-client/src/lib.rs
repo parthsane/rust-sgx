@@ -42,15 +42,14 @@ mod error;
 use self::aesm_proto::*;
 pub use error::{AesmError, Error, Result};
 #[cfg(windows)]
-#[path = "windows/win_aesm_client.rs"]
+#[path = "imp/windows.rs"]
 mod imp;
 #[cfg(unix)]
-#[path = "unix/unix_aesm_client.rs"]
+#[path = "imp/unix.rs"]
 mod imp;
 #[cfg(unix)]
 pub mod unix {
     use std::path::Path;
-    use imp::AesmClient;
     pub trait AesmClientExt {
         fn with_path<P: AsRef<Path>>(path: P) -> Self;
     }
@@ -157,8 +156,8 @@ pub struct AesmClient {
 }
 
 impl AesmClient {
-    pub fn new() -> Result<Self> {
-        imp::AesmClient::new().map(|inner| AesmClient { inner })
+    pub fn new() -> Self {
+        AesmClient { inner: imp::AesmClient::new() }
     }
 
     /// Test the connection with AESM.

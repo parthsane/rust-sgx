@@ -213,7 +213,7 @@ const IID_IAESMINTERFACE: IID = IID {
     Data4: [0x8F, 0xCB, 0x10, 0xCF, 0xAB, 0x80, 0x2C, 0xDD],
 };
 
-trait HresultExt:Sized {
+trait HresultExt: Sized {
     fn into_io_error(self) -> IoResult<Self>;
 }
 
@@ -227,12 +227,13 @@ impl HresultExt for HRESULT {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, Default)]
 pub struct AesmClient {
+    dummy_private_var: u32,
 }
 
 struct AesmInterface {
-    inner : *mut InnerAesmInterface,
+    inner: *mut InnerAesmInterface,
 }
 
 impl Drop for AesmInterface {
@@ -240,26 +241,15 @@ impl Drop for AesmInterface {
         unsafe {
             if let Some(release) = (*(*self.inner).vtbl).release {
                 release(self.inner);
-                CoUninitialize();
             }
+            CoUninitialize();
         }
     }
 }
 
 impl AesmClient {
-    pub fn new() -> Result<Self> {
-        Ok(AesmClient{})
-    }
-
-    fn initialize_com(&self) -> Result<HRESULT> {
-        unsafe {
-            CoInitializeEx(
-                ptr::null_mut(),
-                COINIT_MULTITHREADED | COINIT_DISABLE_OLE1DDE,
-            )
-                .into_io_error()
-                .map_err(|e| Error::AesmCommunication(IoError::new(ErrorKind::Other, format!("Failed to initialize COM: {}", e))) )
-        }
+    pub fn new() -> Self {
+        Default::default()
     }
 
     pub fn try_connect(&self) -> Result<()> {
@@ -273,8 +263,10 @@ impl AesmClient {
                 ptr::null_mut(),
                 COINIT_MULTITHREADED | COINIT_DISABLE_OLE1DDE,
             )
-                .into_io_error()
-                .map_err(|e| IoError::new(ErrorKind::Other, format!("Failed to initialize COM: {}", e)) )?;
+            .into_io_error()
+            .map_err(|e| {
+                IoError::new(ErrorKind::Other, format!("Failed to initialize COM: {}", e))
+            })?;
 
             CoCreateInstance(
                 &CLSID_AESMINTERFACE,
@@ -283,18 +275,19 @@ impl AesmClient {
                 &IID_IAESMINTERFACE,
                 &mut interface as *mut _ as *mut *mut c_void,
             )
-                .into_io_error()
-                .map_err(|e| {
-                    if interface != ptr::null_mut() {
-                        if let Some(release) = (*(*interface).vtbl).release {
-                            release(interface);
-                            CoUninitialize();
-                        }
-                    }
-                    IoError::new(ErrorKind::Other, format!("Fail to create Aesm Interface {}", e))
-                })?;
+            .into_io_error()
+            .map_err(|e| {
+                if let Some(release) = (*(*interface).vtbl).release {
+                    release(interface);
+                }
+                CoUninitialize();
+                IoError::new(
+                    ErrorKind::Other,
+                    format!("Fail to create Aesm Interface {}", e),
+                )
+            })?;
         }
-        Ok(AesmInterface { inner: interface } )
+        Ok(AesmInterface { inner: interface })
     }
 
     pub fn init_quote(&self) -> Result<QuoteInfo> {
@@ -311,10 +304,10 @@ impl AesmClient {
                     gid.as_mut_ptr(),
                     gid.len() as _,
                     &mut error as _,
-                ).into_io_error().
-                    map_err(|e| IoError::new(ErrorKind::Other, e) )?;
+                )
+                .into_io_error()?;
                 if error != 0 {
-                    return Err(Error::AesmCode( error.into()) );
+                    return Err(Error::AesmCode(error.into()));
                 }
             }
         }
@@ -356,10 +349,10 @@ impl AesmClient {
                     quote.as_mut_ptr(),
                     quote_buffer_size,
                     &mut error as _,
-                ).into_io_error().
-                    map_err(|e| IoError::new(ErrorKind::Other, e) )?;
+                )
+                .into_io_error()?;
                 if error != 0 {
-                    return Err(Error::AesmCode( error.into()));
+                    return Err(Error::AesmCode(error.into()));
                 }
             }
         }
@@ -388,10 +381,10 @@ impl AesmClient {
                     licence_token.as_mut_ptr(),
                     licence_token.len() as _,
                     &mut error as _,
-                ).into_io_error().
-                    map_err(|e| IoError::new(ErrorKind::Other, e) )?;
+                )
+                .into_io_error()?;
                 if error != 0 {
-                    return Err(Error::AesmCode( error.into()));
+                    return Err(Error::AesmCode(error.into()));
                 }
             }
         }

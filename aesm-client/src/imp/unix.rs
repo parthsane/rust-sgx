@@ -3,11 +3,16 @@ use std::io::{Read, Write};
 use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
+
 use byteorder::{LittleEndian, NativeEndian, ReadBytesExt, WriteBytesExt};
 use protobuf::Message;
 use unix_socket::UnixStream;
+
 pub use error::{AesmError, Error, Result};
-use {QuoteResult, QuoteType, QuoteInfo, AesmRequest, FromResponse, Request_GetLaunchTokenRequest, Request_GetQuoteRequest, Request_InitQuoteRequest};
+use {
+        AesmRequest, FromResponse, QuoteInfo, QuoteResult, QuoteType, Request_GetLaunchTokenRequest,
+        Request_GetQuoteRequest, Request_InitQuoteRequest,
+};
 
 /// This timeout is an argument in AESM request protobufs.
 ///
@@ -20,14 +25,14 @@ const LOCAL_AESM_TIMEOUT_US: u32 = 1_000_000;
 /// remote servers, such as provisioning EPID.
 const REMOTE_AESM_TIMEOUT_US: u32 = 30_000_000;
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, Default)]
 pub struct AesmClient {
     path: Option<PathBuf>,
 }
 
 impl AesmClient {
-    pub fn new() -> Result<Self> {
-        Ok(AesmClient { path: None })
+    pub fn new() -> Self {
+        Default::default()
     }
 
     fn open_socket(&self) -> Result<UnixStream> {
@@ -166,9 +171,9 @@ impl AesmClient {
 impl crate::unix::AesmClientExt for crate::AesmClient {
     fn with_path<P: AsRef<Path>>(path: P) -> Self {
         crate::AesmClient {
-            inner :  self::AesmClient {
+            inner: self::AesmClient {
                 path: Some(path.as_ref().to_owned()),
-            }
+            },
         }
     }
 }
