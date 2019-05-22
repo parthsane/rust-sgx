@@ -19,7 +19,6 @@ use sgxs_loaders::isgx::Device as IsgxDevice;
 #[cfg(windows)]
 use sgxs_loaders::enclaveapi::Sgx as IsgxDevice;
 
-
 use clap::{App, Arg};
 
 arg_enum!{
@@ -48,9 +47,9 @@ fn main() -> Result<(), Error> {
     let file = args.value_of("file").unwrap();
 
     let mut device = IsgxDevice::new()
-    .context("While opening SGX device")?
-    .einittoken_provider(AesmClient::new())
-    .build();
+        .context("While opening SGX device")?
+        .einittoken_provider(AesmClient::new())
+        .build();
 
     let mut enclave_builder = EnclaveBuilder::new(file.as_ref());
 

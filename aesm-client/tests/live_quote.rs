@@ -20,10 +20,10 @@ fn live_quote() {
 
     let mut device = IsgxDevice::new()
         .unwrap()
-        .einittoken_provider(AesmClient::new().unwrap())
+        .einittoken_provider(AesmClient::new())
         .build();
 
-    let client = AesmClient::new().unwrap();
+    let client = AesmClient::new();
 
     let quoteinfo = client.init_quote().expect("init quote");
     let ti = Targetinfo::try_copy_from(quoteinfo.target_info()).unwrap();

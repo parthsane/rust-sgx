@@ -351,7 +351,7 @@ mod tests {
 
     #[test]
     fn test_init_quote() {
-        let quote = AesmClient::new().unwrap().init_quote().unwrap();
+        let quote = AesmClient::new().init_quote().unwrap();
         assert_eq!(
             quote.target_info().len(),
             ::std::mem::size_of::<Targetinfo>()
@@ -364,7 +364,7 @@ mod tests {
         // Doing a meaningful test of this requires creating an enclave, this is
         // just a simple test that we can send a bogus request and get an error
         // back. The node attest flow in testsetup.sh exercises the real case.
-        let client = AesmClient::new().unwrap();
+        let client = AesmClient::new();
 
         let quote = client.init_quote().unwrap();
 

@@ -227,7 +227,7 @@ impl SgxSupport {
         )
         .map(EfiSoftwareguardstatus::from);
         let aesm_service = (|| {
-            let client = AesmClient::new()?;
+            let client = AesmClient::new();
             client.try_connect()?;
             Ok(TimeoutHardError::new(client))
         })();

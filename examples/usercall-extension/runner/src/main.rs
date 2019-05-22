@@ -91,7 +91,7 @@ fn main() {
 
     let mut device = IsgxDevice::new()
         .unwrap()
-        .einittoken_provider(AesmClient::new().unwrap())
+        .einittoken_provider(AesmClient::new())
         .build();
 
     let mut enclave_builder = EnclaveBuilder::new(file.as_ref());

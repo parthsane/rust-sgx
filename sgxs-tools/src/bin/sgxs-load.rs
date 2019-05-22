@@ -82,7 +82,7 @@ fn main() {
         None => isgx::Device::new(),
     }
     .unwrap()
-    .einittoken_provider(AesmClient::new().unwrap())
+    .einittoken_provider(AesmClient::new())
     .build();
     let mut file = File::open(matches.value_of("sgxs").unwrap()).unwrap();
     let sigstruct =
