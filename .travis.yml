@@ -40,8 +40,8 @@ matrix:
       rust:
         - nightly
       env:
-        - RUST_BACKTRACE=1 LLVM_CONFIG_PATH=llvm-3.8-config
-#      before_script:
+        - RUST_BACKTRACE=1 LLVM_CONFIG_PATH=llvm-3.8-config OPENSSL_DIR=C:\Program Files\OpenSSL\
+      #      before_script:
 #        - rustup target add x86_64-fortanix-unknown-sgx
       script:
         - cd enclave-runner; cargo build
