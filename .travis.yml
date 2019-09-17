@@ -40,7 +40,7 @@ matrix:
       rust:
         - nightly
       env:
-        - RUST_BACKTRACE=1 LLVM_CONFIG_PATH=llvm-3.8-config OPENSSL_DIR=C:\Program Files\OpenSSL-Win64
+        - RUST_BACKTRACE=1 LLVM_CONFIG_PATH=llvm-3.8-config OPENSSL_DIR="C:\\Program\ Files\\OpenSSL-Win64"
       #      before_script:
 #        - rustup target add x86_64-fortanix-unknown-sgx
       script:
