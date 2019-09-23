@@ -57,7 +57,10 @@ use yansi::Paint;
 use aesm_client::AesmClient;
 use sgx_isa::{Sigstruct, Attributes, Einittoken};
 use sgxs::einittoken::EinittokenProvider;
-use sgxs_loaders::isgx::Device as IsgxDevice;
+#[cfg(unix)]
+use sgxs_loaders::isgx::Device as SgxDevice;
+#[cfg(windows)]
+use sgxs_loaders::enclaveapi::Sgx as SgxDevice;
 use sgxs_loaders::sgx_enclave_common::Library as EnclCommonLib;
 
 mod interpret;
@@ -137,7 +140,7 @@ pub struct SgxSupport {
     #[serde(skip, default)]
     dcap_library: bool,
     #[serde(skip, default = "no_deserialize")]
-    loader_sgxdev: Result<Rc<RefCell<IsgxDevice>>, Rc<Error>>,
+    loader_sgxdev: Result<Rc<RefCell<SgxDevice>>, Rc<Error>>,
     #[serde(skip, default = "no_deserialize")]
     sgxdev_status: Result<KmodStatus, Rc<Error>>,
     #[serde(skip, default = "no_deserialize")]
@@ -232,9 +235,13 @@ impl SgxSupport {
             Ok(TimeoutHardError::new(client))
         })();
         let aesm_status = linux::aesm_status().map_err(|e| debug!("{}", FailTrace(&e))).ok();
-        let dcap_library = dcap_ql::is_loaded();
+        #[cfg(unix)]
+            let dcap_library = dcap_ql::is_loaded();
+        #[cfg(windows)]
+            let dcap_library = false;
+
         let loader_sgxdev = (|| {
-            let mut dev = IsgxDevice::new()?;
+            let mut dev = SgxDevice::new()?;
             if let Ok(ref aesm) = aesm_service {
                 dev = dev.einittoken_provider(aesm.clone());
             }
@@ -260,7 +267,7 @@ impl SgxSupport {
             efi_softwareguardstatus: rcerr(efi_softwareguardstatus),
             aesm_service: rcerr(aesm_service),
             aesm_status,
-            dcap_library: dcap_library,
+            dcap_library,
             loader_sgxdev: rcerr(loader_sgxdev),
             sgxdev_status: rcerr(sgxdev_status),
             loader_encllib: rcerr(loader_encllib),
